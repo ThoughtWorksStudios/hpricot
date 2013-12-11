@@ -12,6 +12,10 @@ end
 
 RbConfig = Config unless defined?(RbConfig)
 
+def win32?
+  RbConfig::CONFIG["host_os"] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/
+end
+
 NAME = "hpricot"
 REV = (`#{ENV['GIT'] || "git"} rev-list HEAD`.split.length + 1).to_s
 VERS = ENV['VERSION'] || "0.8" + (REV ? ".#{REV}" : "")
@@ -57,7 +61,7 @@ SPEC =
     s.bindir = "bin"
   end
 # Dup the spec before any of its calculated ivars are set (e.g., #cache_file)
-Win32Spec = SPEC.dup
+Win32Spec = SPEC.dup if win32?
 JRubySpec = SPEC.dup
 
 # FAT cross-compile
@@ -128,21 +132,23 @@ Gem::PackageTask.new(SPEC) do |p|
     p.gem_spec = SPEC
 end
 
-### Win32 Packages ###
-Win32Spec.platform = 'i386-mswin32'
-Win32Spec.files = PKG_FILES + %w(hpricot_scan fast_xs).map do |t|
-  unless ENV['RUBY_CC_VERSION']
-    file "lib/#{t}/1.8/#{t}.so" do
-      abort "ERROR while packaging: re-run for fat win32 gems:\nrake #{ARGV.join(' ')} RUBY_CC_VERSION=1.8.7:1.9.2"
+if win32?
+  ### Win32 Packages ###
+  Win32Spec.platform = 'i386-mswin32'
+  Win32Spec.files = PKG_FILES + %w(hpricot_scan fast_xs).map do |t|
+    unless ENV['RUBY_CC_VERSION']
+      file "lib/#{t}/1.8/#{t}.so" do
+        abort "ERROR while packaging: re-run for fat win32 gems:\nrake #{ARGV.join(' ')} RUBY_CC_VERSION=1.8.7:1.9.2"
+      end
     end
-  end
-  ["lib/#{t}.rb", "lib/#{t}/1.8/#{t}.so", "lib/#{t}/1.9/#{t}.so"]
-end.flatten
-Win32Spec.extensions = []
+    ["lib/#{t}.rb", "lib/#{t}/1.8/#{t}.so", "lib/#{t}/1.9/#{t}.so"]
+  end.flatten
+  Win32Spec.extensions = []
 
-Gem::PackageTask.new(Win32Spec) do |p|
-  p.need_tar = false
-  p.gem_spec = Win32Spec
+  Gem::PackageTask.new(Win32Spec) do |p|
+    p.need_tar = false
+    p.gem_spec = Win32Spec
+  end
 end
 
 JRubySpec.platform = 'java'
